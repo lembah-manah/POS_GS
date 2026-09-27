@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <?!= include('css'); ?>
+</head>
+<body>
+
+  <div id="loginView" class="center-box">
+    <h2>POS Minimarket</h2>
+    <p class="hint">Masuk dengan akun yang diberikan admin</p>
+    <div id="loginError" class="error-msg"></div>
+    <input id="username" placeholder="Username" autocomplete="username">
+    <input id="password" type="password" placeholder="Password" autocomplete="current-password">
+    <button id="btnLogin">Login</button>
+  </div>
+
+  <div id="appView" style="display:none;">
+    <header class="app-header">
+      <span id="lblOutlet"></span>
+      <span id="lblUser"></span>
+      <span id="lblRole" class="badge"></span>
+      <button id="btnLogout">Logout</button>
+    </header>
+
+    <main>
+      <h3>Daftar Outlet</h3>
+      <table id="tblOutlets">
+        <thead><tr><th>Kode</th><th>Nama</th><th>Kota</th><th>Status</th></tr></thead>
+        <tbody></tbody>
+      </table>
+
+      <div id="userSection" style="display:none;">
+        <h3>Daftar User (khusus Admin)</h3>
+        <table id="tblUsers">
+          <thead><tr><th>Username</th><th>Nama</th><th>Role</th><th>Outlet</th><th>Status</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div id="backupSection" style="display:none;">
+        <h3>Backup Database</h3>
+        <button id="btnBackupNow">Backup Manual Sekarang</button>
+        <table id="tblBackups">
+          <thead><tr><th>Waktu</th><th>Tipe</th><th>Status</th><th>File</th><th>Dipicu Oleh</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div id="restoreSection" style="display:none;">
+        <h3>Restore Database <span class="warn">(khusus Super Admin — data saat ini akan ditimpa)</span></h3>
+        <input id="restoreFileId" placeholder="Drive File ID dari salah satu backup di atas">
+        <label class="confirm-row">
+          <input type="checkbox" id="restoreConfirm"> Saya mengerti data saat ini akan ditimpa oleh isi backup ini
+        </label>
+        <button id="btnRestore">Restore Sekarang</button>
+        <div id="restoreResult"></div>
+      </div>
+    </main>
+  </div>
+
+  <?!= include('js'); ?>
+</body>
+</html>

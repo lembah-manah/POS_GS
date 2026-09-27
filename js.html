@@ -1,0 +1,142 @@
+<script>
+  function showError(msg) {
+    document.getElementById('loginError').innerText = msg;
+  }
+
+  document.getElementById('btnLogin').addEventListener('click', function () {
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+    if (!username || !password) { showError('Username dan password wajib diisi.'); return; }
+    showError('');
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { showError(res.message); return; }
+        sessionStorage.setItem('pos_session', JSON.stringify(res.data));
+        enterApp(res.data);
+      })
+      .withFailureHandler(function (err) { showError('ERROR: ' + err.message); })
+      .loginUser(username, password);
+  });
+
+  document.getElementById('btnLogout').addEventListener('click', function () {
+    const session = JSON.parse(sessionStorage.getItem('pos_session') || '{}');
+    google.script.run.logoutUser(session.token);
+    sessionStorage.removeItem('pos_session');
+    location.reload();
+  });
+
+  function enterApp(session) {
+    document.getElementById('loginView').style.display = 'none';
+    document.getElementById('appView').style.display = 'block';
+    document.getElementById('lblOutlet').innerText = 'Outlet: ' + session.outletId;
+    document.getElementById('lblUser').innerText = session.nama;
+    document.getElementById('lblRole').innerText = session.role;
+
+    if (session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_PUSAT') {
+      document.getElementById('userSection').style.display = 'block';
+      document.getElementById('backupSection').style.display = 'block';
+      loadUsers(session.token);
+      loadBackups(session.token);
+    }
+    if (session.role === 'SUPER_ADMIN') {
+      document.getElementById('restoreSection').style.display = 'block';
+    }
+    loadOutlets(session.token);
+  }
+
+  function loadBackups(token) {
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { alert(res.message); return; }
+        const tbody = document.querySelector('#tblBackups tbody');
+        tbody.innerHTML = '';
+        res.data.forEach(function (b) {
+          const tr = document.createElement('tr');
+          const fileCell = b.DriveFileUrl ? '<a href="' + b.DriveFileUrl + '" target="_blank">' + b.FileName + '</a>' : '-';
+          tr.innerHTML = '<td>' + new Date(b.Timestamp).toLocaleString() + '</td><td>' + b.Type + '</td><td>' + b.Status + '</td><td>' + fileCell + '</td><td>' + b.TriggeredBy + '</td>';
+          tbody.appendChild(tr);
+        });
+      })
+      .withFailureHandler(function (err) { alert('ERROR: ' + err.message); })
+      .listBackups(token, null);
+  }
+
+  const btnBackupNow = document.getElementById('btnBackupNow');
+  if (btnBackupNow) {
+    btnBackupNow.addEventListener('click', function () {
+      const session = JSON.parse(sessionStorage.getItem('pos_session') || '{}');
+      btnBackupNow.disabled = true;
+      google.script.run
+        .withSuccessHandler(function (res) {
+          btnBackupNow.disabled = false;
+          alert(res.success ? res.message : res.message);
+          if (res.success) loadBackups(session.token);
+        })
+        .withFailureHandler(function (err) { btnBackupNow.disabled = false; alert('ERROR: ' + err.message); })
+        .manualBackup(session.token);
+    });
+  }
+
+  const btnRestore = document.getElementById('btnRestore');
+  if (btnRestore) {
+    btnRestore.addEventListener('click', function () {
+      const session = JSON.parse(sessionStorage.getItem('pos_session') || '{}');
+      const fileId = document.getElementById('restoreFileId').value.trim();
+      const confirmed = document.getElementById('restoreConfirm').checked;
+      const resultDiv = document.getElementById('restoreResult');
+
+      if (!fileId) { resultDiv.innerText = 'Isi Drive File ID dari backup yang mau dipulihkan.'; return; }
+      if (!confirmed) { resultDiv.innerText = 'Centang kotak konfirmasi terlebih dahulu.'; return; }
+      if (!confirm('Yakin? Data saat ini akan ditimpa oleh isi backup ini.')) return;
+
+      btnRestore.disabled = true;
+      resultDiv.innerText = 'Memproses restore...';
+      google.script.run
+        .withSuccessHandler(function (res) {
+          btnRestore.disabled = false;
+          resultDiv.innerText = res.message;
+          if (res.success) { loadBackups(session.token); loadOutlets(session.token); loadUsers(session.token); }
+        })
+        .withFailureHandler(function (err) { btnRestore.disabled = false; resultDiv.innerText = 'ERROR: ' + err.message; })
+        .restoreDatabase(session.token, fileId, true);
+    });
+  }
+
+  function loadOutlets(token) {
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { alert(res.message); return; }
+        const tbody = document.querySelector('#tblOutlets tbody');
+        tbody.innerHTML = '';
+        res.data.forEach(function (o) {
+          const tr = document.createElement('tr');
+          tr.innerHTML = '<td>' + o.OutletCode + '</td><td>' + o.OutletName + '</td><td>' + o.City + '</td><td>' + o.Status + '</td>';
+          tbody.appendChild(tr);
+        });
+      })
+      .withFailureHandler(function (err) { alert('ERROR: ' + err.message); })
+      .listOutlets(token);
+  }
+
+  function loadUsers(token) {
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) return;
+        const tbody = document.querySelector('#tblUsers tbody');
+        tbody.innerHTML = '';
+        res.data.forEach(function (u) {
+          const tr = document.createElement('tr');
+          tr.innerHTML = '<td>' + u.Username + '</td><td>' + u.Nama + '</td><td>' + u.Role + '</td><td>' + u.OutletID + '</td><td>' + u.Status + '</td>';
+          tbody.appendChild(tr);
+        });
+      })
+      .listUsers(token);
+  }
+
+  // Jika tab masih terbuka dan sesi tersimpan belum kedaluwarsa, langsung masuk tanpa login ulang.
+  (function () {
+    const saved = sessionStorage.getItem('pos_session');
+    if (saved) enterApp(JSON.parse(saved));
+  })();
+</script>
